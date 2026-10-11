@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Тумба - Qdesign</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Интерфейс (Панель управления) -->
+    <div id="ui-panel">
+        <h2>Тумбаның параметрлері</h2>
+        
+        <div class="control-group">
+            <label>Ені (Ширина), мм:</label>
+            <input type="number" id="width" value="600" step="10">
+        </div>
+        <div class="control-group">
+            <label>Биіктігі (Высота), мм:</label>
+            <input type="number" id="height" value="800" step="10">
+        </div>
+        <div class="control-group">
+            <label>Тереңдігі (Глубина), мм:</label>
+            <input type="number" id="depth" value="400" step="10">
+        </div>
+
+        <div class="control-group">
+            <label>Түсі (Цвет):</label>
+            <div class="colors">
+                <button class="color-btn" style="background: #fffcf5; color: #000;" data-color="0xfffcf5">Ақ (Белый)</button>
+                <button class="color-btn" style="background: #999B9B; color: #000;" data-color="0x999B9B">Сұр (Серый)</button>
+                <button class="color-btn" style="background: #693524; color: #fff;" data-color="0x693524">Жаңғақ (Орех)</button>
+            </div>
+        </div>
+
+        <!-- Управление Солнцем и тенью -->
+        <div class="control-group">
+            <label>Күннің орбитасы (Орбита Солнца):</label>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
+                <div>
+                    <span style="font-size: 12px; color: #555;">Айнала қозғалу (По кругу):</span>
+                    <input type="range" id="sunAngle" min="0" max="360" value="45" style="width: 100%;">
+                </div>
+                <div>
+                    <span style="font-size: 12px; color: #555;">Биіктігі (Высота):</span>
+                    <input type="range" id="sunHeight" min="100" max="3000" value="1500" style="width: 100%;">
+                </div>
+                <div>
+                    <span style="font-size: 12px; color: #555;">Қашықтық (Ближе-Дальше):</span>
+                    <input type="range" id="sunRadius" min="500" max="4000" value="1500" style="width: 100%;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Контейнер, где будет отрисована 3D модель -->
+    <div id="canvas-container"></div>
+
+    <!-- Подключение библиотеки Three.js из интернета -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    
+    <!-- Подключение файла с логикой -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>

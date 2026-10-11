@@ -1,0 +1,63 @@
+body {
+    margin: 0;
+    overflow: hidden; /* Убираем полосы прокрутки */
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+#canvas-container {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+}
+
+/* Дизайн панели управления (Эффект матового стекла) */
+#ui-panel {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    width: 280px;
+    z-index: 10;
+}
+
+h2 { margin-top: 0; font-size: 18px; }
+.control-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: 500;}
+input[type="number"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+
+.colors { display: flex; gap: 8px; flex-direction: column; }
+.color-btn {
+    padding: 10px; border: 1px solid #ddd; border-radius: 6px;
+    cursor: pointer; font-weight: bold; border-width: 2px;
+}
+
+/* Дизайн текста размеров, висящего над тумбой */
+.dimension-label {
+    color: #000;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    border: 1px solid #ccc;
+    pointer-events: none; /* Мышка проходит сквозь текст, не цепляясь за него */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Адаптация под экраны мобильных телефонов */
+@media (max-width: 600px) {
+    #ui-panel {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 15px;
+        max-height: 45vh;
+        overflow-y: auto;
+        box-sizing: border-box;
+    }
+}
