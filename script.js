@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { woodCanvases, makeWood } from './textures.js';
 import { buildRoom, flames, ROOM, WINDOW, NIGHTSTAND_RIGHT } from './room.js';
 import { useFlowerEnv } from './flowers.js';
+import { useBookEnv } from './books.js';
 import { playDrawer, playDoor, isMuted, setMuted } from './sound.js';
 import { buildTumba, buildTopItems, LIMITS } from './tumba.js';
 
@@ -56,7 +57,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.enablePan = false;
-controls.minDistance = 600;
+controls.minDistance = 350;
 controls.maxDistance = 4200;
 controls.maxPolarAngle = Math.PI * 0.49;
 
@@ -186,7 +187,7 @@ function rebuild() {
     tumbaRoot.add(tumba.group, items.group, dims);
     // правый край тумбы у кровати, задняя стенка у стены
     tumbaRoot.position.set(NIGHTSTAND_RIGHT - w / 2, 0, -ROOM.d / 2 + d / 2 + 20);
-    targetGoal.set(tumbaRoot.position.x, h * 0.5, tumbaRoot.position.z);
+    targetGoal.set(tumbaRoot.position.x, h * 0.75, tumbaRoot.position.z);   // ближе к столешнице: при приближении видны вещи на ней
     applyMoves();
 }
 
@@ -413,6 +414,7 @@ function animate() {
 // ---------- 8. ЗАПУСК ----------
 function init() {
     useFlowerEnv(envMap);
+    useBookEnv(envMap);
     room = buildRoom(scene, envMap);
     setupWoods();
     setupDims();

@@ -2,9 +2,10 @@
 // дверца с арочной филёнкой и коваными петлями, точёные ножки.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { applyBoxUV, makeNoise } from './textures.js';
+import { applyBoxUV } from './textures.js';
 import { makeCandle, makeHolder, archedPanelGeo } from './room.js';
 import { makeBouquet } from './flowers.js';
+import { makeBookStack } from './books.js';
 
 // Допустимые размеры, мм
 export const LIMITS = { width: [300, 1200], height: [450, 1100], depth: [300, 700] };
@@ -241,28 +242,13 @@ export function buildTumba({ w, h, d, wood, inner, brass, iron }) {
 }
 
 // ---------- Вещи на столешнице ----------
-const leathers = [0x6b2416, 0x2c3f2a, 0x4a2c16].map((base, i) => {
-    const t = makeNoise({ base, amount: 0.35, cells: 20, seed: 61 + i });
-    return new THREE.MeshStandardMaterial({ map: t.map, bumpMap: t.bump, bumpScale: 1.2, roughness: 0.7 });
-});
-const pageMat = new THREE.MeshStandardMaterial({ color: 0xe9dcb8, roughness: 0.9 });
-
-function book(bw, bt, bd, cover) {
-    const g = new THREE.Group();
-    g.add(shade(new THREE.Mesh(rbox(bw, 5, bd, 2), cover)).translateY(bt / 2 - 2.5));
-    g.add(shade(new THREE.Mesh(rbox(bw, 5, bd, 2), cover)).translateY(-(bt / 2 - 2.5)));
-    g.add(shade(new THREE.Mesh(rbox(10, bt, bd, 3), cover)).translateX(-bw / 2 + 5));
-    g.add(shade(new THREE.Mesh(new THREE.BoxGeometry(bw - 14, bt - 10, bd - 8), pageMat)).translateX(3));
-    return g;
-}
-
-// Букет на тумбе строится один раз и переносится при смене размеров
-let bouquet = null;
+// Букет и книги строятся один раз и переносятся при смене размеров
+let bouquet = null, books = null;
 
 export function buildTopItems({ w, h, d, metal }) {
     const g = new THREE.Group();
-    const roomy = w >= 460;
-    const cx = roomy ? -w * 0.24 : 0, cz = -d * 0.1;
+    const roomy = w >= 460, withBooks = w >= 820;   // на широкой тумбе посередине ложатся книги
+    const cx = withBooks ? -w * 0.3 : roomy ? -w * 0.24 : 0, cz = -d * 0.1;
     const holder = makeHolder(metal);
     holder.position.set(cx, h, cz);
     const candle = makeCandle({ height: 150, radius: 16, register: false });
@@ -272,17 +258,13 @@ export function buildTopItems({ w, h, d, metal }) {
     g.add(holder, candle.group, anchor);
     if (roomy) {
         bouquet ||= makeBouquet({ height: 250, count: 9, seed: 3 });
-        bouquet.position.set(w * 0.22, h, -d * 0.05);
+        bouquet.position.set(withBooks ? w * 0.3 : w * 0.22, h, -d * 0.05);
         g.add(bouquet);
     }
-    if (w >= 820) {
-        const b1 = book(240, 46, Math.min(175, d - 60), leathers[0]);
-        b1.position.set(-w * 0.02, h + 23, d * 0.05);
-        b1.rotation.y = 0.2;
-        const b2 = book(200, 36, Math.min(150, d - 80), leathers[1]);
-        b2.position.set(-w * 0.02 + 6, h + 46 + 18, d * 0.05);
-        b2.rotation.y = -0.12;
-        g.add(b1, b2);
+    if (withBooks) {
+        books ||= makeBookStack();
+        books.position.set(w * 0.01, h, d * 0.04);
+        g.add(books);
     }
     return { group: g, anchor, flame: candle.flame };
 }
