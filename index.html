@@ -4,59 +4,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Тумба - Qdesign</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Cormorant+SC:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Интерфейс (Панель управления) -->
-    <div id="ui-panel">
-        <h2>Тумбаның параметрлері</h2>
-        
-        <div class="control-group">
-            <label>Ені (Ширина), мм:</label>
-            <input type="number" id="width" value="600" step="10">
-        </div>
-        <div class="control-group">
-            <label>Биіктігі (Высота), мм:</label>
-            <input type="number" id="height" value="800" step="10">
-        </div>
-        <div class="control-group">
-            <label>Тереңдігі (Глубина), мм:</label>
-            <input type="number" id="depth" value="400" step="10">
-        </div>
-
-        <div class="control-group">
-            <label>Түсі (Цвет):</label>
-            <div class="colors">
-                <button class="color-btn" style="background: #fffcf5; color: #000;" data-color="0xfffcf5">Ақ (Белый)</button>
-                <button class="color-btn" style="background: #999B9B; color: #000;" data-color="0x999B9B">Сұр (Серый)</button>
-                <button class="color-btn" style="background: #693524; color: #fff;" data-color="0x693524">Жаңғақ (Орех)</button>
-            </div>
-        </div>
-
-        <!-- Управление Солнцем и тенью -->
-        <div class="control-group">
-            <label>Күннің орбитасы (Орбита Солнца):</label>
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
-                <div>
-                    <span style="font-size: 12px; color: #555;">Айнала қозғалу (По кругу):</span>
-                    <input type="range" id="sunAngle" min="0" max="360" value="45" style="width: 100%;">
-                </div>
-                <div>
-                    <span style="font-size: 12px; color: #555;">Биіктігі (Высота):</span>
-                    <input type="range" id="sunHeight" min="100" max="3000" value="1500" style="width: 100%;">
-                </div>
-                <div>
-                    <span style="font-size: 12px; color: #555;">Қашықтық (Ближе-Дальше):</span>
-                    <input type="range" id="sunRadius" min="500" max="4000" value="1500" style="width: 100%;">
-                </div>
-            </div>
+    <!-- Экран загрузки, пока рисуются текстуры -->
+    <div id="loader">
+        <div>
+            <span class="loader-emblem">⚜</span>
+            <p>Бөлме дайындалуда…<br><small>Готовим комнату…</small></p>
         </div>
     </div>
 
-    <!-- Контейнер, где будет отрисована 3D модель -->
+    <!-- Панель управления -->
+    <aside id="ui-panel">
+        <header class="panel-header">
+            <div>
+                <h1>Тумба</h1>
+                <p class="subtitle">Тумбаның параметрлері · Параметры тумбы</p>
+            </div>
+            <button id="collapseBtn" class="icon-btn" aria-expanded="true" title="Панельді жию · Свернуть панель">–</button>
+        </header>
+        <div class="divider"><span>❦</span></div>
+
+        <div class="panel-body">
+            <section class="group">
+                <div class="group-head">
+                    <h2>Өлшемдер <span>· Размеры</span></h2>
+                    <button id="toggleDims" class="chip" aria-pressed="true">Жасыру · Скрыть</button>
+                </div>
+                <div class="dim-row">
+                    <label for="width">Ені <span>· Ширина</span></label>
+                    <div class="num"><input type="number" id="width" step="10"><em>мм</em></div>
+                    <input type="range" id="width-range" step="10" aria-label="Ширина">
+                </div>
+                <div class="dim-row">
+                    <label for="height">Биіктігі <span>· Высота</span></label>
+                    <div class="num"><input type="number" id="height" step="10"><em>мм</em></div>
+                    <input type="range" id="height-range" step="10" aria-label="Высота">
+                </div>
+                <div class="dim-row">
+                    <label for="depth">Тереңдігі <span>· Глубина</span></label>
+                    <div class="num"><input type="number" id="depth" step="10"><em>мм</em></div>
+                    <input type="range" id="depth-range" step="10" aria-label="Глубина">
+                </div>
+            </section>
+
+            <section class="group">
+                <h2>Ағаш түрі <span>· Порода дерева</span></h2>
+                <div id="woods" class="woods"></div>
+            </section>
+
+            <section class="group">
+                <h2>Тумба <span>· Открыть</span></h2>
+                <div class="actions">
+                    <button id="drawerBtn" class="btn">Тартпаны ашу<small>Открыть ящик</small></button>
+                    <button id="doorBtn" class="btn">Есікті ашу<small>Открыть дверцу</small></button>
+                </div>
+            </section>
+
+            <section class="group">
+                <div class="group-head">
+                    <h2>Жарық <span>· Свет</span></h2>
+                    <button id="nightBtn" class="chip">☾ Түн · Ночь</button>
+                </div>
+                <label class="slider-label" for="sunAngle">Күн бағыты <span>· Направление солнца</span></label>
+                <input type="range" id="sunAngle" min="-60" max="60" value="18">
+                <label class="slider-label" for="sunHeight">Күн биіктігі <span>· Высота солнца</span></label>
+                <input type="range" id="sunHeight" min="8" max="70" value="30">
+            </section>
+
+            <p class="hint">Тінтуірмен айналдырыңыз, тартпа мен есікті басыңыз<br>
+                <span>Вращайте мышью, нажмите на ящик или дверцу</span></p>
+        </div>
+    </aside>
+
+    <!-- Сюда рисуется 3D-сцена -->
     <div id="canvas-container"></div>
 
-    <!-- Подключение библиотеки Three.js из интернета -->
+    <!-- Three.js из интернета -->
     <script type="importmap">
         {
             "imports": {
@@ -65,8 +93,6 @@
             }
         }
     </script>
-    
-    <!-- Подключение файла с логикой -->
     <script type="module" src="script.js"></script>
 </body>
 </html>
