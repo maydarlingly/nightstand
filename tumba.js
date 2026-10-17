@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { applyBoxUV, makeNoise } from './textures.js';
 import { makeCandle, makeHolder, archedPanelGeo } from './room.js';
+import { makeBouquet } from './flowers.js';
 
 // Допустимые размеры, мм
 export const LIMITS = { width: [300, 1200], height: [450, 1100], depth: [300, 700] };
@@ -61,7 +62,7 @@ function strapHinge(iron, len) {
     const g = new THREE.Group();
     const strap = shade(new THREE.Mesh(new THREE.BoxGeometry(len, 16, 3), iron));
     strap.position.x = len / 2;
-    const tip = shade(new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 3, 4), iron));
+    const tip = shade(new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 3, 20), iron));
     tip.rotation.x = Math.PI / 2;
     tip.position.x = len;
     const barrel = shade(new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 34, 12), iron));
@@ -190,7 +191,7 @@ export function buildTumba({ w, h, d, wood, inner, brass, iron }) {
         const pm2 = clamp(Math.min(dw, dh) * 0.14, 22, 50);
         door.add(P(archedPanelGeo(dw - 2 * pm2, dh - 2 * pm2), wood, dw / 2, 0, -2, { vertical: true }));
         for (const sy of [1, -1]) {
-            const hinge = strapHinge(iron, clamp(dw * 0.42, 70, 240));
+            const hinge = strapHinge(brass, clamp(dw * 0.28, 60, 150));
             hinge.position.set(0, sy * (dh / 2 - pm2 / 2), 1.5);
             door.add(hinge);
         }
@@ -255,11 +256,14 @@ function book(bw, bt, bd, cover) {
     return g;
 }
 
-export function buildTopItems({ w, h, d, iron }) {
+// Букет на тумбе строится один раз и переносится при смене размеров
+let bouquet = null;
+
+export function buildTopItems({ w, h, d, metal }) {
     const g = new THREE.Group();
     const roomy = w >= 460;
     const cx = roomy ? -w * 0.24 : 0, cz = -d * 0.1;
-    const holder = makeHolder(iron);
+    const holder = makeHolder(metal);
     holder.position.set(cx, h, cz);
     const candle = makeCandle({ height: 150, radius: 16, register: false });
     candle.group.position.set(cx, h + holder.userData.top, cz);
@@ -267,11 +271,16 @@ export function buildTopItems({ w, h, d, iron }) {
     anchor.position.set(cx, h + holder.userData.top + candle.tipY + 12, cz);
     g.add(holder, candle.group, anchor);
     if (roomy) {
+        bouquet ||= makeBouquet({ height: 250, count: 9, seed: 3 });
+        bouquet.position.set(w * 0.22, h, -d * 0.05);
+        g.add(bouquet);
+    }
+    if (w >= 820) {
         const b1 = book(240, 46, Math.min(175, d - 60), leathers[0]);
-        b1.position.set(w * 0.2, h + 23, d * 0.02);
+        b1.position.set(-w * 0.02, h + 23, d * 0.05);
         b1.rotation.y = 0.2;
         const b2 = book(200, 36, Math.min(150, d - 80), leathers[1]);
-        b2.position.set(w * 0.2 + 6, h + 46 + 18, d * 0.02);
+        b2.position.set(-w * 0.02 + 6, h + 46 + 18, d * 0.05);
         b2.rotation.y = -0.12;
         g.add(b1, b2);
     }

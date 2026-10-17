@@ -4,6 +4,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { woodCanvases, makeWood } from './textures.js';
 import { buildRoom, flames, ROOM, WINDOW, NIGHTSTAND_RIGHT } from './room.js';
+import { useFlowerEnv } from './flowers.js';
 import { buildTumba, buildTopItems, LIMITS } from './tumba.js';
 
 const $ = id => document.getElementById(id);
@@ -19,12 +20,12 @@ const WOODS = [
 
 // Яркость света днём и ночью
 const LIGHTS = {
-    day: { sun: 3.0, sunColor: 0xffe7c4, hemi: 0.55, fire: 1.6e6, candle: 2.5e5, chand: 3e5, exposure: 1.0 },
-    night: { sun: 0.35, sunColor: 0x8fa6d8, hemi: 0.06, fire: 3.2e6, candle: 6e5, chand: 1.4e6, exposure: 1.2 },
+    day: { sun: 2.4, sunColor: 0xfff1dc, hemi: 1.7, sky: 0xfff6ee, fire: 1.4e6, candle: 2e5, chand: 3e5, exposure: 1.0 },
+    night: { sun: 0.5, sunColor: 0xa9b6e6, hemi: 0.55, sky: 0xc4c6ec, fire: 3e6, candle: 6e5, chand: 1.6e6, exposure: 1.15 },
 };
 
 const state = {
-    width: 600, height: 800, depth: 400, wood: 'walnut',
+    width: 600, height: 800, depth: 400, wood: 'oak',
     drawer: 0, door: 0, drawerT: 0, doorT: 0,   // 0 — закрыто, 1 — открыто
     dims: true, night: false,
 };
@@ -45,7 +46,7 @@ labelRenderer.domElement.id = 'labels';
 document.body.appendChild(labelRenderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x120c08);
+scene.background = new THREE.Color(0xf3e9df);
 // Отражения для металла и лака
 const envMap = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 
@@ -59,7 +60,8 @@ controls.maxDistance = 4200;
 controls.maxPolarAngle = Math.PI * 0.49;
 
 // ---------- 2. СВЕТ ----------
-const hemi = new THREE.HemisphereLight(0xffe2bf, 0x2b1d12, 0.55);
+// Мягкий рассеянный свет от светлых стен — комната без тёмных углов
+const hemi = new THREE.HemisphereLight(0xfff6ee, 0xe2cdb8, 1.7);
 scene.add(hemi);
 
 // Солнце светит снаружи через окно, тень от стены оставляет на полу световое пятно
@@ -87,7 +89,7 @@ const woodMat = new THREE.MeshPhysicalMaterial({
     roughness: 0.48, clearcoat: 0.3, clearcoatRoughness: 0.38, bumpScale: 0.7, envMap, envMapIntensity: 0.35,
 });
 const innerMat = new THREE.MeshStandardMaterial({ color: 0xa8957d, roughness: 0.85, bumpScale: 0.5 });
-const brass = new THREE.MeshStandardMaterial({ color: 0xb38b4d, metalness: 1, roughness: 0.32, envMap, envMapIntensity: 1.1 });
+const brass = new THREE.MeshStandardMaterial({ color: 0xcfa45c, metalness: 0.7, roughness: 0.32, envMap, envMapIntensity: 1.1 });
 const iron = new THREE.MeshStandardMaterial({ color: 0x2c2a29, metalness: 0.85, roughness: 0.5, envMap, envMapIntensity: 0.6 });
 
 const woodCache = {};
@@ -163,7 +165,7 @@ let tumba = null, items = null, dims = null;
 
 function disposeTree(obj) {
     obj.traverse(o => {
-        if (o.geometry) o.geometry.dispose();
+        if (o.geometry && !o.userData.keep) o.geometry.dispose();
         if (o.element) o.element.remove();    // HTML-подписи
     });
 }
@@ -176,7 +178,7 @@ function rebuild() {
         disposeTree(old);
     }
     tumba = buildTumba({ w, h, d, wood: woodMat, inner: innerMat, brass, iron });
-    items = buildTopItems({ w, h, d, iron });
+    items = buildTopItems({ w, h, d, metal: brass });
     dims = buildDims(w, h, d);
     dims.visible = state.dims;
     items.anchor.add(candleLight);
@@ -276,6 +278,7 @@ function setNight(on) {
     sun.intensity = L.sun;
     sun.color.set(L.sunColor);
     hemi.intensity = L.hemi;
+    hemi.color.set(L.sky);
     renderer.toneMappingExposure = L.exposure;
     room.skyMat.map = on ? room.skyNight : room.skyDay;
     room.skyMat.needsUpdate = true;
@@ -398,6 +401,7 @@ function animate() {
 
 // ---------- 8. ЗАПУСК ----------
 function init() {
+    useFlowerEnv(envMap);
     room = buildRoom(scene, envMap);
     setupWoods();
     setupDims();
@@ -408,7 +412,7 @@ function init() {
     rebuild();
     controls.target.copy(targetGoal);
     updateViewOffset();
-    camera.position.set(targetGoal.x - 300, 1450, targetGoal.z + 2900);
+    camera.position.set(targetGoal.x - 750, 1500, targetGoal.z + 2800);
     animate();                              // первый кадр рисуется сразу
     $('loader').classList.add('done');
 }

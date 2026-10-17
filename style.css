@@ -304,14 +304,14 @@ input[type="range"]:focus-visible { outline: 2px solid var(--gold); outline-offs
     display: grid;
     place-items: center;
     text-align: center;
-    color: #e8d3a0;
-    background: radial-gradient(circle at 50% 45%, #2c1c10, #0e0805 70%);
+    color: #7a4a3a;
+    background: radial-gradient(circle at 50% 45%, #fdf7ef, #ecdccb 75%);
     transition: opacity .6s ease;
 }
 
 #loader.done { opacity: 0; pointer-events: none; }
 #loader p { margin: 10px 0 0; font-size: 20px; }
-#loader small { font-size: 15px; font-style: italic; color: #b89c6a; }
+#loader small { font-size: 15px; font-style: italic; color: #a07a64; }
 
 .loader-emblem { display: block; font-size: 54px; color: var(--gold); animation: pulse 1.6s ease-in-out infinite; }
 

@@ -138,7 +138,10 @@ export function makePlanks({ size = 1024, rows = 6, base = 0x6b4529, dark = 0x2e
 }
 
 // ---------- Каменная кладка ----------
-export function makeStone({ size = 1024, rows = 7, seed = 11 } = {}) {
+export function makeStone({
+    size = 1024, rows = 7, seed = 11, soot = 0.7, mortarColor = 0x4f4840,
+    palette: tones = [0x8c8274, 0x7b7366, 0x968b7b, 0x70695f, 0x9b9282, 0x857a6a],
+} = {}) {
     const rnd = random(seed);
     const rowH = size / rows;
     const rowsInfo = [];
@@ -154,8 +157,8 @@ export function makeStone({ size = 1024, rows = 7, seed = 11 } = {}) {
         cuts.push(size);
         rowsInfo.push({ cuts, off: Math.floor(rnd() * size) });
     }
-    const palette = [0x8c8274, 0x7b7366, 0x968b7b, 0x70695f, 0x9b9282, 0x857a6a].map(rgb);
-    const M = rgb(0x4f4840);
+    const palette = tones.map(rgb);
+    const M = rgb(mortarColor);
     const mortar = 4;
     return pack(paint(size, size, (x, y, o) => {
         const u = x / size, v = y / size;
@@ -174,17 +177,19 @@ export function makeStone({ size = 1024, rows = 7, seed = 11 } = {}) {
             return;
         }
         const c = palette[Math.floor(hash(row * 17 + k, 2, seed) * palette.length)];
-        const soot = fbm(u, v, 3, 3, seed + 9, 3);
-        const tone = (0.78 + surf * 0.38) * (1 - Math.max(0, soot - 0.6) * 0.7);
+        const stain = fbm(u, v, 3, 3, seed + 9, 3);
+        const tone = (0.78 + surf * 0.38) * (1 - Math.max(0, stain - 0.6) * soot);
         o[0] = c[0] * tone; o[1] = c[1] * tone; o[2] = c[2] * tone;
         o[3] = Math.sqrt(clamp01((e - mortar) / 16)) * (0.7 + surf * 0.3);
     }));
 }
 
 // ---------- Штукатурка ----------
-export function makePlaster({ size = 512, base = 0xd6c7a8, seed = 21 } = {}) {
+export const makePlaster = opts => pack(makePlasterCanvases(opts));
+
+function makePlasterCanvases({ size = 512, base = 0xd6c7a8, seed = 21 } = {}) {
     const B = rgb(base);
-    return pack(paint(size, size, (x, y, o) => {
+    return paint(size, size, (x, y, o) => {
         const u = x / size, v = y / size;
         const t = fbm(u, v, 4, 4, seed, 5);
         const s = fbm(u, v, 24, 24, seed + 3, 2);
@@ -192,7 +197,7 @@ export function makePlaster({ size = 512, base = 0xd6c7a8, seed = 21 } = {}) {
         const k = 0.88 + t * 0.2 - stain;
         o[0] = B[0] * k; o[1] = B[1] * k; o[2] = B[2] * k * 0.98;
         o[3] = 0.5 + (t - 0.5) * 0.8 + (s - 0.5) * 0.3;
-    }));
+    });
 }
 
 // ---------- Шумная поверхность: кожа, кора, угли ----------
@@ -237,112 +242,167 @@ function grainOverlay(c, seed, amount = 0.12) {
     g.putImageData(img, 0, 0);
 }
 
-// ---------- Ковёр с орнаментом ----------
+// Цветочек на холсте: лепестки-эллипсы вокруг серединки
+function flower2d(g, x, y, r, n, color, center = '#e9c46a', rot = 0) {
+    g.fillStyle = color;
+    for (let i = 0; i < n; i++) {
+        const a = rot + (i / n) * Math.PI * 2;
+        g.beginPath();
+        g.ellipse(x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55, r * 0.5, r * 0.3, a, 0, Math.PI * 2);
+        g.fill();
+    }
+    g.fillStyle = center;
+    g.beginPath(); g.arc(x, y, r * 0.28, 0, Math.PI * 2); g.fill();
+}
+
+function leaf2d(g, x, y, len, angle, color) {
+    g.fillStyle = color;
+    g.beginPath();
+    g.ellipse(x + Math.cos(angle) * len * 0.5, y + Math.sin(angle) * len * 0.5, len * 0.5, len * 0.2, angle, 0, Math.PI * 2);
+    g.fill();
+}
+
+// ---------- Ковёр: пудрово-розовый с шалфеем и золотом ----------
 export function makeRug() {
     const W = 1024, H = 704;
     const c = canvas(W, H), g = c.getContext('2d');
-    const navy = '#1d2440', gold = '#b8893e', red = '#6a1a18', red2 = '#8e2c22', cream = '#e3cf9f';
+    const sage = '#a9bda3', gold = '#c9a35a', cream = '#f8efe5', field = '#f0dcd4', rose = '#e3a2b0', rose2 = '#c97d90', sageLt = '#dfe8d8';
     const frame = (inset, color) => { g.fillStyle = color; g.fillRect(inset, inset, W - 2 * inset, H - 2 * inset); };
-    const diamond = (x, y, rx, ry, color) => {
-        g.fillStyle = color;
-        g.beginPath(); g.moveTo(x, y - ry); g.lineTo(x + rx, y); g.lineTo(x, y + ry); g.lineTo(x - rx, y); g.closePath(); g.fill();
-    };
-    frame(0, navy); frame(14, gold); frame(20, navy);
-    // кайма с ромбиками
+    frame(0, sage); frame(14, gold); frame(20, cream);
+    // кайма с цветочками
     let n = 0;
-    for (let x = 48; x < W - 40; x += 34) { diamond(x, 42, 10, 12, n % 2 ? gold : red2); diamond(x, H - 42, 10, 12, n++ % 2 ? gold : red2); }
-    for (let y = 76; y < H - 60; y += 34) { diamond(42, y, 12, 10, n % 2 ? gold : red2); diamond(W - 42, y, 12, 10, n++ % 2 ? gold : red2); }
-    frame(64, gold); frame(70, red);
-    // мелкий узор поля
-    for (let y = 110; y < H - 90; y += 52) {
-        for (let x = 110; x < W - 90; x += 52) {
-            diamond(x, y, 7, 7, red2);
-            g.fillStyle = gold; g.beginPath(); g.arc(x, y, 2.4, 0, Math.PI * 2); g.fill();
-        }
+    for (let x = 52; x < W - 40; x += 40) { flower2d(g, x, 42, 13, 4, n % 2 ? rose : sage, gold, 0.6); flower2d(g, x, H - 42, 13, 4, n++ % 2 ? rose : sage, gold, 0.6); }
+    for (let y = 84; y < H - 60; y += 40) { flower2d(g, 42, y, 13, 4, n % 2 ? rose : sage, gold, 0.6); flower2d(g, W - 42, y, 13, 4, n++ % 2 ? rose : sage, gold, 0.6); }
+    frame(64, gold); frame(70, field);
+    // мелкие цветочки по полю
+    for (let y = 108; y < H - 90; y += 50) {
+        for (let x = 108 + ((y / 50) % 2) * 25; x < W - 90; x += 50) flower2d(g, x, y, 8, 4, (x + y) % 3 ? rose : sage, cream, 0.3);
     }
-    // угловые треугольники
-    g.fillStyle = navy; g.strokeStyle = gold; g.lineWidth = 4;
-    for (const [x, y, sx, sy] of [[70, 70, 1, 1], [W - 70, 70, -1, 1], [70, H - 70, 1, -1], [W - 70, H - 70, -1, -1]]) {
-        g.beginPath(); g.moveTo(x, y); g.lineTo(x + sx * 190, y); g.lineTo(x, y + sy * 140); g.closePath(); g.fill(); g.stroke();
+    // угловые четверти круга
+    g.strokeStyle = gold; g.lineWidth = 4;
+    for (const [x, y, a] of [[70, 70, 0], [W - 70, 70, Math.PI / 2], [W - 70, H - 70, Math.PI], [70, H - 70, -Math.PI / 2]]) {
+        g.fillStyle = sageLt;
+        g.beginPath(); g.moveTo(x, y); g.arc(x, y, 150, a, a + Math.PI / 2); g.closePath(); g.fill(); g.stroke();
+        flower2d(g, x + Math.cos(a + Math.PI / 4) * 70, y + Math.sin(a + Math.PI / 4) * 70, 22, 5, rose, gold);
     }
-    // центральный медальон
+    // центральный медальон с розеткой
     const cx = W / 2, cy = H / 2;
-    diamond(cx, cy, 290, 215, gold);
-    diamond(cx, cy, 280, 205, navy);
-    diamond(cx, cy, 200, 145, gold);
-    diamond(cx, cy, 192, 138, red2);
-    diamond(cx, cy, 90, 66, cream);
-    diamond(cx, cy, 82, 58, navy);
-    g.fillStyle = gold;
-    g.save(); g.translate(cx, cy);
-    for (let i = 0; i < 2; i++) { g.rotate(Math.PI / 4); g.fillRect(-26, -26, 52, 52); }
-    g.restore();
-    diamond(cx, cy, 14, 14, red);
-    grainOverlay(c, 5, 0.16);
+    g.fillStyle = gold; g.beginPath(); g.ellipse(cx, cy, 250, 180, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = sageLt; g.beginPath(); g.ellipse(cx, cy, 242, 172, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = cream; g.beginPath(); g.ellipse(cx, cy, 170, 120, 0, 0, Math.PI * 2); g.fill();
+    for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        leaf2d(g, cx + Math.cos(a) * 150, cy + Math.sin(a) * 105, 42, a, '#8fac88');
+        flower2d(g, cx + Math.cos(a + 0.26) * 200, cy + Math.sin(a + 0.26) * 140, 14, 5, i % 2 ? rose : '#ffffff', gold);
+    }
+    flower2d(g, cx, cy, 90, 8, rose, gold);
+    flower2d(g, cx, cy, 52, 8, rose2, gold, 0.4);
+    grainOverlay(c, 5, 0.1);
     return toTexture(c);
 }
 
-// ---------- Гобелен с гербом ----------
+// ---------- Гобелен «мильфлёр»: тысяча цветов и корона ----------
 export function makeTapestry() {
     const W = 512, H = 768, bodyH = H - 70;
     const c = canvas(W, H), g = c.getContext('2d');
-    const gold = '#c0913f';
-    // контур с «зубцами» внизу
+    const gold = '#cba253';
+    const rnd = random(77);
     const outline = () => {
         g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, bodyH);
         const teeth = 7;
         for (let i = teeth - 1; i >= 0; i--) { g.lineTo((i + 0.5) * W / teeth, H - 6); g.lineTo(i * W / teeth, bodyH); }
         g.closePath();
     };
-    outline(); g.fillStyle = '#1e3a2c'; g.fill();
+    outline(); g.fillStyle = '#a3bb9e'; g.fill();
     g.save(); outline(); g.clip();
-    // ромбическая сетка
-    g.strokeStyle = 'rgba(192,145,63,.28)'; g.lineWidth = 2;
-    for (let k = -H; k < W + H; k += 56) {
-        g.beginPath(); g.moveTo(k, 0); g.lineTo(k + H, H); g.stroke();
-        g.beginPath(); g.moveTo(k, 0); g.lineTo(k - H, H); g.stroke();
-    }
-    g.fillStyle = 'rgba(192,145,63,.55)';
-    for (let a = 0; a <= W / 28; a++) for (let b = 0; b <= H / 28; b++) {
-        if ((a + b) % 2) continue;
-        g.beginPath(); g.arc(a * 28, b * 28, 3, 0, Math.PI * 2); g.fill();
+    // россыпь цветов
+    const colors = ['#ffffff', '#f2b3c0', '#e58aa0', '#f4d675', '#c8b3e6', '#fbe3d6'];
+    for (let i = 0; i < 260; i++) {
+        const x = rnd() * W, y = rnd() * H, r = 5 + rnd() * 7;
+        leaf2d(g, x, y, r * 2, rnd() * Math.PI * 2, '#7f9f7a');
+        flower2d(g, x, y, r, 5, colors[Math.floor(rnd() * colors.length)], '#f0c75e', rnd());
     }
     // каймы
-    g.strokeStyle = gold; g.lineWidth = 8; g.strokeRect(22, 22, W - 44, bodyH - 44);
-    g.strokeStyle = '#7c1f1c'; g.lineWidth = 3; g.strokeRect(36, 36, W - 72, bodyH - 72);
-    // щит
-    const sx = W / 2 - 115, sy = 170, sw = 230, sh = 280;
-    const shield = () => {
-        g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + sw, sy); g.lineTo(sx + sw, sy + sh * 0.55);
-        g.quadraticCurveTo(sx + sw, sy + sh * 0.9, sx + sw / 2, sy + sh);
-        g.quadraticCurveTo(sx, sy + sh * 0.9, sx, sy + sh * 0.55); g.closePath();
-    };
-    g.save(); shield(); g.clip();
-    g.fillStyle = '#7c1f1c'; g.fillRect(sx, sy, sw / 2, sh);
-    g.fillStyle = '#1f2f5e'; g.fillRect(sx + sw / 2, sy, sw / 2, sh);
+    g.strokeStyle = '#d9919f'; g.lineWidth = 14; g.strokeRect(22, 22, W - 44, bodyH - 44);
+    g.strokeStyle = gold; g.lineWidth = 3; g.strokeRect(14, 14, W - 28, bodyH - 28); g.strokeRect(30, 30, W - 60, bodyH - 60);
+    // медальон с розой
+    const cx = W / 2, cy = 330;
+    g.fillStyle = gold; g.beginPath(); g.arc(cx, cy, 118, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#fbf3ea'; g.beginPath(); g.arc(cx, cy, 110, 0, Math.PI * 2); g.fill();
+    for (let i = 0; i < 10; i++) leaf2d(g, cx, cy, 95, (i / 10) * Math.PI * 2, '#93b28c');
+    flower2d(g, cx, cy, 70, 7, '#f2b3c0', '#e58aa0');
+    flower2d(g, cx, cy, 44, 6, '#e58aa0', '#c9667f', 0.4);
+    flower2d(g, cx, cy, 20, 5, '#c9667f', gold, 0.8);
+    // корона
     g.fillStyle = gold;
     g.beginPath();
-    g.moveTo(sx, sy + sh * 0.72); g.lineTo(sx + sw / 2, sy + sh * 0.34); g.lineTo(sx + sw, sy + sh * 0.72);
-    g.lineTo(sx + sw, sy + sh * 0.72 + 36); g.lineTo(sx + sw / 2, sy + sh * 0.34 + 36); g.lineTo(sx, sy + sh * 0.72 + 36);
-    g.closePath(); g.fill();
-    g.restore();
-    shield(); g.strokeStyle = gold; g.lineWidth = 7; g.stroke();
-    // три ромба над щитом и полоса треугольников внизу
-    for (const dx of [-70, 0, 70]) {
-        g.fillStyle = gold; g.beginPath();
-        g.moveTo(W / 2 + dx, 92); g.lineTo(W / 2 + dx + 16, 116); g.lineTo(W / 2 + dx, 140); g.lineTo(W / 2 + dx - 16, 116);
-        g.closePath(); g.fill();
-    }
-    for (let x = 60; x < W - 50; x += 36) {
-        g.beginPath(); g.moveTo(x, bodyH - 96); g.lineTo(x + 18, bodyH - 72); g.lineTo(x - 18, bodyH - 72); g.closePath();
-        g.fillStyle = gold; g.fill();
-    }
+    g.moveTo(cx - 60, 196); g.lineTo(cx - 70, 140); g.lineTo(cx - 35, 168); g.lineTo(cx, 126);
+    g.lineTo(cx + 35, 168); g.lineTo(cx + 70, 140); g.lineTo(cx + 60, 196); g.closePath(); g.fill();
+    for (const dx of [-70, 0, 70]) { g.beginPath(); g.arc(cx + dx, dx ? 136 : 120, 8, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#e58aa0'; g.beginPath(); g.arc(cx, 178, 7, 0, Math.PI * 2); g.fill();
     g.restore();
     outline(); g.strokeStyle = gold; g.lineWidth = 6; g.stroke();
-    grainOverlay(c, 9, 0.18);
+    grainOverlay(c, 9, 0.12);
     const tex = toTexture(c);
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
     return tex;
+}
+
+// ---------- Расписной фриз под потолком: лоза с розами ----------
+export function makeFrieze() {
+    const W = 1024, H = 160;
+    const c = canvas(W, H), g = c.getContext('2d');
+    g.fillStyle = '#f7ede3'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#cba253'; g.fillRect(0, 10, W, 5); g.fillRect(0, H - 15, W, 5);
+    g.fillStyle = '#e9b9c2'; g.fillRect(0, 0, W, 8); g.fillRect(0, H - 8, W, 8);
+    const vine = x => H / 2 + Math.sin((x / W) * Math.PI * 8) * 26;
+    g.strokeStyle = '#86a77f'; g.lineWidth = 4;
+    g.beginPath(); for (let x = 0; x <= W; x += 4) g.lineTo(x, vine(x)); g.stroke();
+    for (let x = 16; x < W; x += 32) leaf2d(g, x, vine(x), 24, (x / 32) % 2 ? -0.9 : 2.2, '#93b28c');
+    for (let k = 0; k < 8; k++) {
+        const x = (k + 0.25) * (W / 8);
+        flower2d(g, x, vine(x), 22, 6, k % 2 ? '#e58aa0' : '#f2b3c0', '#f0c75e', k);
+        flower2d(g, x, vine(x), 11, 5, '#c9667f', '#f0c75e', k + 0.5);
+        flower2d(g, x + W / 16, vine(x + W / 16), 9, 5, '#ffffff', '#f0c75e');
+    }
+    grainOverlay(c, 13, 0.08);
+    const tex = toTexture(c);
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    return tex;
+}
+
+// ---------- Штукатурка с трафаретными цветочками ----------
+export function makeStencil({ base = 0xf3e6dc, seed = 21 } = {}) {
+    const res = makePlasterCanvases({ size: 512, base, seed });
+    const g = res.color.getContext('2d');
+    for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 4; col++) {
+            const x = col * 128 + (row % 2) * 64 + 32, y = row * 128 + 64;
+            leaf2d(g, x - 2, y + 6, 18, 2.4, 'rgba(126,158,116,.35)');
+            leaf2d(g, x + 2, y + 6, 18, 0.7, 'rgba(126,158,116,.35)');
+            flower2d(g, x, y, 12, 5, 'rgba(220,140,158,.42)', 'rgba(203,162,83,.7)', row);
+        }
+    }
+    return pack(res);
+}
+
+// ---------- Голубой потолок с золотыми звёздами ----------
+export function makeStarCeiling() {
+    const res = makePlasterCanvases({ size: 512, base: 0xd3e1ef, seed: 31 });
+    const g = res.color.getContext('2d');
+    g.fillStyle = '#cfa44f';
+    for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 4; col++) {
+            const x = col * 128 + (row % 2) * 64 + 32, y = row * 128 + 64;
+            g.beginPath();
+            for (let i = 0; i < 16; i++) {
+                const r = i % 2 ? 4 : 13, a = (i / 16) * Math.PI * 2;
+                g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+            }
+            g.closePath(); g.fill();
+        }
+    }
+    return pack(res);
 }
 
 // ---------- Свинцовая решётка окна (ромбы) ----------
