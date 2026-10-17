@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { woodCanvases, makeWood } from './textures.js';
 import { buildRoom, flames, ROOM, WINDOW, NIGHTSTAND_RIGHT } from './room.js';
 import { useFlowerEnv } from './flowers.js';
+import { playDrawer, playDoor, isMuted, setMuted } from './sound.js';
 import { buildTumba, buildTopItems, LIMITS } from './tumba.js';
 
 const $ = id => document.getElementById(id);
@@ -12,10 +13,10 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 // Породы дерева: светлый тон древесины и цвет годовых колец
 const WOODS = [
-    { id: 'oak', kk: 'Ақ емен', ru: 'Белёный дуб', base: 0xe4d5b9, dark: 0xb59d76, rings: 7, seed: 2 },
-    { id: 'gray', kk: 'Сұр', ru: 'Серый ясень', base: 0xa6a19a, dark: 0x6b665f, rings: 8, seed: 5 },
-    { id: 'walnut', kk: 'Жаңғақ', ru: 'Орех', base: 0x7d4b2c, dark: 0x3a1f10, rings: 6, seed: 8 },
-    { id: 'bog', kk: 'Қара емен', ru: 'Морёный дуб', base: 0x4d3523, dark: 0x1e130a, rings: 7, seed: 12 },
+    { id: 'oak', name: 'Белёный дуб', tone: 'светлый', base: 0xe4d5b9, dark: 0xb59d76, rings: 7, seed: 2 },
+    { id: 'gray', name: 'Серый ясень', tone: 'серый', base: 0xa6a19a, dark: 0x6b665f, rings: 8, seed: 5 },
+    { id: 'walnut', name: 'Орех', tone: 'тёплый', base: 0x7d4b2c, dark: 0x3a1f10, rings: 6, seed: 8 },
+    { id: 'bog', name: 'Морёный дуб', tone: 'тёмный', base: 0x4d3523, dark: 0x1e130a, rings: 7, seed: 12 },
 ];
 
 // Яркость света днём и ночью
@@ -135,10 +136,10 @@ function dimLine(a, b, tick) {
     return g;
 }
 
-function dimLabel(kk, ru, value, pos) {
+function dimLabel(name, value, pos) {
     const el = document.createElement('div');
     el.className = 'dim-label';
-    el.innerHTML = `<span class="dim-name">${kk} · ${ru}</span><span class="dim-value">${value}<small>мм</small></span>`;
+    el.innerHTML = `<span class="dim-name">${name}</span><span class="dim-value">${value}<small>мм</small></span>`;
     const o = new CSS2DObject(el);
     o.position.copy(pos);
     return o;
@@ -151,9 +152,9 @@ function buildDims(w, h, d) {
     g.add(dimLine(V(-w / 2, 14, fz + 120), V(w / 2, 14, fz + 120), V(0, 0, 1)));
     g.add(dimLine(V(lx - 70, 0, fz + 40), V(lx - 70, h, fz + 40), V(1, 0, 0)));
     g.add(dimLine(V(lx - 120, 14, -d / 2), V(lx - 120, 14, fz), V(1, 0, 0)));
-    g.add(dimLabel('Ені', 'Ширина', w, V(0, 50, fz + 120)));
-    g.add(dimLabel('Биіктігі', 'Высота', h, V(lx - 70, h / 2, fz + 40)));
-    g.add(dimLabel('Тереңдігі', 'Глубина', d, V(lx - 120, 50, 0)));
+    g.add(dimLabel('Ширина', w, V(0, 50, fz + 120)));
+    g.add(dimLabel('Высота', h, V(lx - 70, h / 2, fz + 40)));
+    g.add(dimLabel('Глубина', d, V(lx - 120, 50, 0)));
     return g;
 }
 
@@ -239,9 +240,9 @@ function setupWoods() {
         const b = document.createElement('button');
         b.className = 'wood';
         b.dataset.id = wd.id;
-        b.setAttribute('aria-label', `${wd.kk} · ${wd.ru}`);
+        b.setAttribute('aria-label', wd.name);
         b.style.backgroundImage = `url(${woodCanvases({ ...wd, size: 160 }).color.toDataURL()})`;
-        b.innerHTML = `<span>${wd.kk}<small>${wd.ru}</small></span>`;
+        b.innerHTML = `<span>${wd.name}<small>${wd.tone}</small></span>`;
         b.addEventListener('click', () => setWood(wd.id));
         box.appendChild(b);
     }
@@ -251,14 +252,16 @@ function toggleDrawer() {
     state.drawer = 1 - state.drawer;
     const b = $('drawerBtn');
     b.classList.toggle('is-on', state.drawer === 1);
-    b.innerHTML = state.drawer ? 'Тартпаны жабу<small>Закрыть ящик</small>' : 'Тартпаны ашу<small>Открыть ящик</small>';
+    b.textContent = state.drawer ? 'Закрыть ящик' : 'Открыть ящик';
+    playDrawer(state.drawer === 1);
 }
 
 function toggleDoor() {
     state.door = 1 - state.door;
     const b = $('doorBtn');
     b.classList.toggle('is-on', state.door === 1);
-    b.innerHTML = state.door ? 'Есікті жабу<small>Закрыть дверцу</small>' : 'Есікті ашу<small>Открыть дверцу</small>';
+    b.textContent = state.door ? 'Закрыть дверцу' : 'Открыть дверцу';
+    playDoor(state.door === 1);
 }
 
 function toggleDims() {
@@ -268,7 +271,14 @@ function toggleDims() {
     const b = $('toggleDims');
     b.setAttribute('aria-pressed', state.dims);
     b.classList.toggle('is-on', !state.dims);
-    b.textContent = state.dims ? 'Жасыру · Скрыть' : 'Көрсету · Показать';
+    b.textContent = state.dims ? 'Скрыть' : 'Показать';
+}
+
+function paintSound() {
+    const b = $('soundBtn'), on = !isMuted();
+    b.textContent = on ? '🔊 Звук' : '🔇 Без звука';
+    b.setAttribute('aria-pressed', on);
+    b.classList.toggle('is-on', !on);
 }
 
 let room;
@@ -284,7 +294,7 @@ function setNight(on) {
     room.skyMat.needsUpdate = true;
     const b = $('nightBtn');
     b.classList.toggle('is-on', on);
-    b.textContent = on ? '☀ Күн · День' : '☾ Түн · Ночь';
+    b.textContent = on ? '☀ День' : '☾ Ночь';
 }
 
 function updateSun() {
@@ -313,6 +323,7 @@ function setupEvents() {
     $('drawerBtn').addEventListener('click', toggleDrawer);
     $('doorBtn').addEventListener('click', toggleDoor);
     $('nightBtn').addEventListener('click', () => setNight(!state.night));
+    $('soundBtn').addEventListener('click', () => { setMuted(!isMuted()); paintSound(); });
     $('sunAngle').addEventListener('input', updateSun);
     $('sunHeight').addEventListener('input', updateSun);
     $('collapseBtn').addEventListener('click', e => {
@@ -408,6 +419,7 @@ function init() {
     setupEvents();
     setWood(state.wood);
     setNight(false);
+    paintSound();
     updateSun();
     rebuild();
     controls.target.copy(targetGoal);
@@ -418,7 +430,7 @@ function init() {
 }
 
 window.addEventListener('error', e => {
-    $('loader').querySelector('p').innerHTML = `Қате · Ошибка<br><small>${e.message}</small>`;
+    $('loader').querySelector('p').innerHTML = `Ошибка загрузки<br><small>${e.message}</small>`;
 });
 
 // Даём экрану загрузки отрисоваться, затем строим комнату
